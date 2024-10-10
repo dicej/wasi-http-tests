@@ -1,0 +1,22 @@
+[package]
+name = "host"
+version = "0.1.0"
+authors = ["Fermyon Engineering <engineering@fermyon.com>"]
+edition = "2021"
+
+[dev-dependencies]
+anyhow = "1.0.89"
+futures = "0.3.31"
+http-body-util = "0.1.2"
+hyper = "1.4.1"
+pretty_env_logger = "0.5.0"
+rand = "0.8.5"
+tempfile = "3.13.0"
+tokio = { version = "1.34.0", features = ["fs", "process", "macros", "rt-multi-thread"] }
+wasmtime = { path = "../../wasmtime/crates/wasmtime" }
+wasmtime-wasi = { path = "../../wasmtime/crates/wasi" }
+wasmtime-wasi-http = { path = "../../wasmtime/crates/wasi-http" }
+
+[workspace]
+
+

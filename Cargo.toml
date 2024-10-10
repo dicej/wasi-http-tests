@@ -1,0 +1,13 @@
+[workspace]
+members = [
+  "guest",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Fermyon Engineering <engineering@fermyon.com>"]
+edition = "2021"
+
+[workspace.dependencies]
+wit-bindgen = "0.33.0"
