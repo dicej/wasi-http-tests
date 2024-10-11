@@ -11,5 +11,5 @@ This repo is for testing experimental
 - Recent Rust nightly, including the `wasm32-wasip2` target
 
 ```shell
-(cd host && cargo test)
+(cd host && cargo +nightly test)
 ```
