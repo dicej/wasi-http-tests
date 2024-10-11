@@ -4,6 +4,7 @@
 mod tests {
     use {
         anyhow::{anyhow, bail, Result},
+        futures::future::TryFutureExt,
         http_body_util::{BodyExt, Full},
         hyper::{body::Bytes, Request},
         rand::{rngs::StdRng, Rng, SeedableRng},
@@ -128,14 +129,20 @@ mod tests {
         let response_out = store.data_mut().new_response_outparam(tx)?;
         let proxy = Proxy::instantiate_async(&mut store, &component, &linker).await?;
 
-        let task = task::spawn(async move {
-            proxy
-                .wasi_http_incoming_handler()
-                .call_handle(&mut store, request, response_out)
-                .await?;
+        let task = task::spawn(
+            async move {
+                proxy
+                    .wasi_http_incoming_handler()
+                    .call_handle(&mut store, request, response_out)
+                    .await?;
 
-            Ok(())
-        });
+                Ok(())
+            }
+            .map_err(|e| {
+                eprintln!("error calling incoming handler: {e:?}");
+                e
+            }),
+        );
 
         let response = match rx.await {
             Ok(Ok(response)) => Ok(response),
@@ -171,5 +178,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn append() -> Result<()> {
         test(guest().await, "/append").await
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn stream_then_append() -> Result<()> {
+        test(guest().await, "/stream-then-append").await
     }
 }

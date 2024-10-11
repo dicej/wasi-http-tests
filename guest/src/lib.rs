@@ -28,11 +28,18 @@ struct Component;
 
 export!(Component);
 
+enum Strategy {
+    Stream,
+    Append,
+    StreamThenAppend,
+}
+
 impl Guest for Component {
     fn handle(request: IncomingRequest, response_out: ResponseOutparam) {
-        let use_append = match request.path_with_query().as_deref() {
-            Some("/stream") => false,
-            Some("/append") => true,
+        let strategy = match request.path_with_query().as_deref() {
+            Some("/stream") => Strategy::Stream,
+            Some("/append") => Strategy::Append,
+            Some("/stream-then-append") => Strategy::StreamThenAppend,
             value => panic!("unsupported URI: {value:?}"),
         };
         let request_length = u64::from_str(
@@ -82,7 +89,7 @@ impl Guest for Component {
 
         ResponseOutparam::set(response_out, Ok(response));
 
-        if use_append {
+        if let Strategy::Append = &strategy {
             response_body
                 .append(request_stream, Some(request_length))
                 .unwrap();
@@ -101,7 +108,7 @@ impl Guest for Component {
 
         for (file, file_length) in files.values() {
             let file_stream = file.read_via_stream(0).unwrap();
-            if use_append {
+            if let Strategy::Append | Strategy::StreamThenAppend = &strategy {
                 response_body
                     .append(file_stream, Some(*file_length))
                     .unwrap();
@@ -115,6 +122,7 @@ impl Guest for Component {
             }
         }
 
+        drop(response_stream);
         OutgoingBody::finish(response_body, None).unwrap();
     }
 }
