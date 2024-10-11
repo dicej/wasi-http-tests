@@ -4,12 +4,11 @@
 mod tests {
     use {
         anyhow::{anyhow, bail, Result},
-        futures::future,
         http_body_util::{BodyExt, Full},
         hyper::{body::Bytes, Request},
         rand::{rngs::StdRng, Rng, SeedableRng},
-        std::{future::Future, iter, sync::Once},
-        tokio::{fs, process::Command, sync::OnceCell, task},
+        std::{iter, sync::Once},
+        tokio::{fs, process::Command, sync::oneshot, sync::OnceCell, task},
         wasmtime::{
             component::{Component, Linker, ResourceTable},
             Config, Engine, Store,
@@ -17,7 +16,6 @@ mod tests {
         wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiView},
         wasmtime_wasi_http::{
             bindings::{http::types::Scheme, LinkOptions, Proxy},
-            body::HostOutgoingBodyAppending,
             WasiHttpCtx, WasiHttpView,
         },
     };
@@ -35,12 +33,6 @@ mod tests {
         fn ctx(&mut self) -> &mut WasiCtx {
             &mut self.wasi
         }
-        fn on_idle(&mut self) -> impl Future<Output = ()> + Send + 'static {
-            if true {
-                todo!();
-            }
-            future::pending()
-        }
     }
 
     impl WasiHttpView for Ctx {
@@ -49,10 +41,6 @@ mod tests {
         }
         fn ctx(&mut self) -> &mut WasiHttpCtx {
             &mut self.wasi_http
-        }
-        fn push_appending(&mut self, appending: HostOutgoingBodyAppending) -> Result<()> {
-            _ = appending;
-            todo!()
         }
     }
 
@@ -134,7 +122,7 @@ mod tests {
                         .map_err(|_| unreachable!()),
                 )?,
         )?;
-        let (tx, rx) = tokio::sync::oneshot::channel();
+        let (tx, rx) = oneshot::channel();
 
         let response_out = store.data_mut().new_response_outparam(tx)?;
         let proxy = Proxy::instantiate_async(&mut store, &component, &linker).await?;

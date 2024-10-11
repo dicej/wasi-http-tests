@@ -49,7 +49,27 @@ impl Guest for Component {
         .unwrap();
         let request_body = request.consume().unwrap();
         let request_stream = request_body.stream().unwrap();
-        let response = OutgoingResponse::new(Fields::new());
+
+        let (directory, _) = preopens::get_directories().into_iter().next().unwrap();
+        let directory_stream = directory.read_directory().unwrap();
+        let mut files = BTreeMap::new();
+        while let Some(DirectoryEntry { name, .. }) =
+            directory_stream.read_directory_entry().unwrap()
+        {
+            let file = directory
+                .open_at(
+                    PathFlags::empty(),
+                    &name,
+                    OpenFlags::empty(),
+                    DescriptorFlags::READ,
+                )
+                .unwrap();
+            files.insert(name, (file, file.state().unwrap().size));
+        }
+
+        let content_length = request_length + files.values().map(|(_, size)| size).sum();
+
+        let response = OutgoingResponse::new(Fields::from_list(&["content-length"]));
         let response_body = response.body().unwrap();
         let response_stream = response_body.write().unwrap();
 
@@ -72,26 +92,8 @@ impl Guest for Component {
 
         IncomingBody::finish(request_body);
 
-        let (directory, _) = preopens::get_directories().into_iter().next().unwrap();
-        let directory_stream = directory.read_directory().unwrap();
-        let mut files = BTreeMap::new();
-        while let Some(DirectoryEntry { name, .. }) =
-            directory_stream.read_directory_entry().unwrap()
-        {
-            let file = directory
-                .open_at(
-                    PathFlags::empty(),
-                    &name,
-                    OpenFlags::empty(),
-                    DescriptorFlags::READ,
-                )
-                .unwrap();
-            files.insert(name, file);
-        }
-
-        for file in files.values() {
+        for (file, file_length) in files.values() {
             let file_stream = file.read_via_stream(0).unwrap();
-            let file_length = file.stat().unwrap().size;
             if use_append {
                 response_body
                     .append(file_stream, Some(file_length))
