@@ -117,6 +117,7 @@ mod tests {
             Scheme::Http,
             Request::builder()
                 .uri(format!("http://localhost{uri}"))
+                .header("content-length", first_part.len().to_string())
                 .body(
                     Full::new(Bytes::from_static(first_part.as_bytes()))
                         .map_err(|_| unreachable!()),

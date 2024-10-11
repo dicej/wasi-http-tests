@@ -64,12 +64,19 @@ impl Guest for Component {
                     DescriptorFlags::READ,
                 )
                 .unwrap();
-            files.insert(name, (file, file.state().unwrap().size));
+            let length = file.stat().unwrap().size;
+            files.insert(name, (file, length));
         }
 
-        let content_length = request_length + files.values().map(|(_, size)| size).sum();
+        let content_length = request_length + files.values().map(|(_, size)| size).sum::<u64>();
 
-        let response = OutgoingResponse::new(Fields::from_list(&["content-length"]));
+        let response = OutgoingResponse::new(
+            Fields::from_list(&[(
+                "content-length".to_owned(),
+                content_length.to_string().as_bytes().to_owned(),
+            )])
+            .unwrap(),
+        );
         let response_body = response.body().unwrap();
         let response_stream = response_body.write().unwrap();
 
@@ -96,10 +103,10 @@ impl Guest for Component {
             let file_stream = file.read_via_stream(0).unwrap();
             if use_append {
                 response_body
-                    .append(file_stream, Some(file_length))
+                    .append(file_stream, Some(*file_length))
                     .unwrap();
             } else {
-                let mut remaining = file_length;
+                let mut remaining = *file_length;
                 while remaining > 0 {
                     remaining -= response_stream
                         .blocking_splice(&file_stream, remaining)
